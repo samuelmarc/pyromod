@@ -33,7 +33,7 @@ class Client(pyrogram.client.Client):
         message_id: Union[int, List[int]] = None,
         inline_message_id: Union[str, List[str]] = None,
     ):
-        if not timeout:
+        if not timeout and config.default_timeout:
             timeout = config.default_timeout
 
         pattern = Identifier(
