@@ -10,14 +10,9 @@ from ..exceptions import ListenerTimeout, ListenerStopped
 from ..types import ListenerTypes, Identifier, Listener
 from ..utils import should_patch, patch_into
 
-if not config.disable_startup_logs:
-    print(
-        "Pyromod is working! If you like pyromod, please star it at https://github.com/usernein/pyromod"
-    )
-
 
 @patch_into(pyrogram.client.Client)
-class Client(pyrogram.client.Client.on_callback_query()):
+class Client(pyrogram.client.Client):
     listeners: Dict[ListenerTypes, List[Listener]]
     old__init__: Callable
 
@@ -38,6 +33,9 @@ class Client(pyrogram.client.Client.on_callback_query()):
         message_id: Union[int, List[int]] = None,
         inline_message_id: Union[str, List[str]] = None,
     ):
+        if not timeout:
+            timeout = config.default_timeout
+
         pattern = Identifier(
             from_user_id=user_id,
             chat_id=chat_id,
