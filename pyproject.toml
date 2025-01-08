@@ -6,7 +6,7 @@ authors = [
     { name = "Pauxis", email = "pauxiscezar@gmail.com" }
 ]
 dependencies = [
-    "pyrogram >= 1.0"
+    "kurigram"
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
