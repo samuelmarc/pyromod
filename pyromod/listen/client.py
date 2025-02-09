@@ -42,7 +42,7 @@ class Client(pyrogram.client.Client):
             message_id=message_id,
             inline_message_id=inline_message_id,
         )
-        if self.get_listener_matching_with_identifier_pattern(pattern):
+        if self.get_listener_matching_with_identifier_pattern(pattern, listener_type):
             return
 
         loop = asyncio.get_event_loop()
