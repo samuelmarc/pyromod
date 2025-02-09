@@ -42,36 +42,34 @@ class Client(pyrogram.client.Client):
             message_id=message_id,
             inline_message_id=inline_message_id,
         )
-        if self.get_listener_matching_with_identifier_pattern(pattern, listener_type):
-            return
-
-        loop = asyncio.get_event_loop()
-        future = loop.create_future()
-
-        listener = Listener(
-            future=future,
-            filters=filters,
-            unallowed_click_alert=unallowed_click_alert,
-            identifier=pattern,
-            listener_type=listener_type,
-        )
-
-        future.add_done_callback(lambda _future: self.remove_listener(listener))
-
-        self.listeners[listener_type].append(listener)
-
-        try:
-            return await asyncio.wait_for(future, timeout)
-        except asyncio.exceptions.TimeoutError:
-            if callable(config.timeout_handler):
-                if iscoroutinefunction(config.timeout_handler.__call__):
-                    await config.timeout_handler(pattern, listener, timeout)
-                else:
-                    await self.loop.run_in_executor(
-                        None, config.timeout_handler, pattern, listener, timeout
-                    )
-            elif config.throw_exceptions:
-                raise ListenerTimeout(timeout)
+        if not self.get_listener_matching_with_identifier_pattern(pattern, listener_type):
+            loop = asyncio.get_event_loop()
+            future = loop.create_future()
+    
+            listener = Listener(
+                future=future,
+                filters=filters,
+                unallowed_click_alert=unallowed_click_alert,
+                identifier=pattern,
+                listener_type=listener_type,
+            )
+    
+            future.add_done_callback(lambda _future: self.remove_listener(listener))
+    
+            self.listeners[listener_type].append(listener)
+    
+            try:
+                return await asyncio.wait_for(future, timeout)
+            except asyncio.exceptions.TimeoutError:
+                if callable(config.timeout_handler):
+                    if iscoroutinefunction(config.timeout_handler.__call__):
+                        await config.timeout_handler(pattern, listener, timeout)
+                    else:
+                        await self.loop.run_in_executor(
+                            None, config.timeout_handler, pattern, listener, timeout
+                        )
+                elif config.throw_exceptions:
+                    raise ListenerTimeout(timeout)
 
     @should_patch()
     async def ask(
