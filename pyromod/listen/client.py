@@ -42,37 +42,34 @@ class Client(pyrogram.client.Client):
             message_id=message_id,
             inline_message_id=inline_message_id,
         )
-        if not self.get_listener_matching_with_identifier_pattern(pattern, listener_type):
-            loop = asyncio.get_event_loop()
-            future = loop.create_future()
 
-            listener = Listener(
-                future=future,
-                filters=filters,
-                unallowed_click_alert=unallowed_click_alert,
-                identifier=pattern,
-                listener_type=listener_type,
-            )
+        loop = asyncio.get_event_loop()
+        future = loop.create_future()
 
-            future.add_done_callback(lambda _future: self.remove_listener(listener))
+        listener = Listener(
+            future=future,
+            filters=filters,
+            unallowed_click_alert=unallowed_click_alert,
+            identifier=pattern,
+            listener_type=listener_type,
+        )
 
-            self.listeners[listener_type].append(listener)
+        future.add_done_callback(lambda _future: self.remove_listener(listener))
 
-            try:
-                return await asyncio.wait_for(future, timeout)
-            except asyncio.exceptions.TimeoutError:
-                if callable(config.timeout_handler):
-                    if iscoroutinefunction(config.timeout_handler.__call__):
-                        await config.timeout_handler(pattern, listener, timeout)
-                    else:
-                        await self.loop.run_in_executor(
-                            None, config.timeout_handler, pattern, listener, timeout
-                        )
-                    raise ListenerTimeout(timeout)
-                elif config.throw_exceptions:
-                    raise ListenerTimeout(timeout)
-        else:
-            raise ListenerTimeout(timeout)
+        self.listeners[listener_type].append(listener)
+
+        try:
+            return await asyncio.wait_for(future, timeout)
+        except asyncio.exceptions.TimeoutError:
+            if callable(config.timeout_handler):
+                if iscoroutinefunction(config.timeout_handler.__call__):
+                    await config.timeout_handler(pattern, listener, timeout)
+                else:
+                    await self.loop.run_in_executor(
+                        None, config.timeout_handler, pattern, listener, timeout
+                    )
+            elif config.throw_exceptions:
+                raise ListenerTimeout(timeout)
 
     @should_patch()
     async def ask(
@@ -89,6 +86,16 @@ class Client(pyrogram.client.Client):
         *args,
         **kwargs,
     ):
+        if self.get_listener_matching_with_identifier_pattern(
+            Identifier(
+                inline_message_id=inline_message_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                from_user_id=user_id
+            ),
+            listener_type
+        ):
+            raise ListenerTimeout(timeout)
         sent_message = None
         if text.strip() != "":
             chat_to_ask = chat_id[0] if isinstance(chat_id, list) else chat_id
@@ -106,8 +113,9 @@ class Client(pyrogram.client.Client):
         )
         if response:
             response.sent_message = sent_message
-
-        return response
+            return response
+        else:
+            raise ListenerTimeout(timeout)
 
     @should_patch()
     def remove_listener(self, listener: Listener):
