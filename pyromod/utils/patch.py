@@ -17,11 +17,33 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with pyromod.  If not, see <https://www.gnu.org/licenses/>.
 """
+import asyncio
 from contextlib import contextmanager, asynccontextmanager
 from inspect import iscoroutinefunction
 from typing import Callable, T, Type
 
-from pyrogram.sync import async_to_sync
+
+def async_to_sync(obj, name):
+    function = getattr(obj, name)
+    main_loop = asyncio.get_event_loop()
+
+    def async_to_sync_gen(agen, loop, is_main_thread):
+        async def anext(agen):
+            try:
+                return await agen.__anext__(), False
+            except StopAsyncIteration:
+                return None, True
+
+        while True:
+            if is_main_thread:
+                item, done = loop.run_until_complete(anext(agen))
+            else:
+                item, done = asyncio.run_coroutine_threadsafe(anext(agen), loop).result()
+
+            if done:
+                break
+
+            yield item
 
 
 def patch_into(target_class):
